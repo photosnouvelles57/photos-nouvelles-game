@@ -95,6 +95,9 @@
     <button class="action" id="boost">Sprint</button>
   </div>
   <div id="hint">Joystick = direction · Sprint = accélération · Attrape-la !</div>
+  <div id="startScreen" style="position:fixed;inset:0;display:grid;place-items:center;z-index:20;background:radial-gradient(circle at center, rgba(6,12,28,.6), rgba(2,4,10,.94));">
+    <button id="startBtn" class="badge" style="pointer-events:auto;cursor:pointer;font-size:18px;padding:14px 20px;">▶ Jouer maintenant</button>
+  </div>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.162.0/build/three.module.js';
@@ -104,6 +107,12 @@
     const speedEl = document.getElementById('speed');
     const timerEl = document.getElementById('timer');
     const msgEl = document.getElementById('message');
+    const startScreen = document.getElementById('startScreen');
+    const startBtn = document.getElementById('startBtn');
+
+    if (!window.WebGLRenderingContext) {
+      msgEl.textContent = 'WebGL non supporté sur cet appareil.';
+    }
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
@@ -309,6 +318,7 @@
     // Gameplay
     const state = {
       t: 0,
+      running: false,
       won: false,
       catchDistance: 1.6,
       wolfVel: new THREE.Vector3(),
@@ -338,6 +348,11 @@
     const clock = new THREE.Clock();
     function loop() {
       const dt = Math.min(0.032, clock.getDelta());
+      if (!state.running) {
+        renderer.render(scene, camera);
+        requestAnimationFrame(loop);
+        return;
+      }
       state.t += dt;
 
       // input combined
@@ -387,7 +402,21 @@
 
         if (d < state.catchDistance) {
           state.won = true;
-          msgEl.innerHTML = '✅ Attrapée !<br>Le loup domine la forêt enchantée.';
+          msgEl.innerHTML = '✅ Attrapée !<br><button id="again" class="badge" style="pointer-events:auto;margin-top:8px;cursor:pointer;">Rejouer</button>';
+          setTimeout(() => {
+            const again = document.getElementById('again');
+            if (again) {
+              again.addEventListener('click', () => {
+                state.won = false;
+                state.t = 0;
+                wolf.position.set(0, 0.86, 0);
+                state.wolfVel.set(0, 0, 0);
+                girl.position.set(0, 0, -18);
+                pickGirlTarget();
+                msgEl.textContent = 'Chasse la fille au chaperon rouge dans la forêt enchantée.';
+              }, { once: true });
+            }
+          }, 0);
         }
       }
 
@@ -422,6 +451,11 @@
       requestAnimationFrame(loop);
     }
     loop();
+
+    startBtn.addEventListener('click', () => {
+      state.running = true;
+      startScreen.style.display = 'none';
+    });
 
     addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
